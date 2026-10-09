@@ -11,7 +11,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 
 # Install application as a non-editable package
-COPY todoist_categorizer.py ./
+COPY todoist_classifier.py ./
 RUN uv sync --locked --no-dev --no-editable
 
 
@@ -27,4 +27,4 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 USER 10001:10001
 
-CMD ["todoist-categorizer"]
+CMD ["todoist-classifier"]

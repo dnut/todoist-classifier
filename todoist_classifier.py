@@ -17,7 +17,7 @@ TODOIST_URL = "https://api.todoist.com/api/v1"
 
 
 class Config(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="TODOIST_CATEGORIZER_")
+    model_config = SettingsConfigDict(env_prefix="TODOIST_CLASSIFIER_")
 
     project_ids: Annotated[
         list[str], NoDecode, BeforeValidator(lambda x: [s for s in x.split(",")])

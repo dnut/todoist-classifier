@@ -1,4 +1,4 @@
-# Todoist Categorizer
+# Todoist Classifier
 
 Automatically categorize Todoist tasks into project sections. The service polls
 selected projects, identifies tasks that have no section within the project,
@@ -22,8 +22,8 @@ These commands can be used to quickly get started running the code:
 
 ```bash
 # clone the repo
-git clone https://github.com/dnut/todoist-categorizer.git
-cd todoist-categorizer
+git clone https://github.com/dnut/todoist-classifier.git
+cd todoist-classifier
 
 # install the service to a local folder
 python3.13 -m venv .venv
@@ -34,7 +34,7 @@ pip install .
 cp example.env .env
 
 # run the service
-todoist-categorizer
+todoist-classifier
 ```
 
 The process runs until stopped. Use `Ctrl-C` to stop it.
@@ -49,11 +49,11 @@ deployment pipelines. You can deploy this using docker-compose:
 
 ```yaml
 services:
-  todoist-categorizer:
-    build: https://github.com/dnut/todoist-categorizer.git#master
+  todoist-classifier:
+    build: https://github.com/dnut/todoist-classifier.git#master
     pull_policy: build
     restart: unless-stopped
-    env_file: todoist-categorizer.env  # copy from example.env and modify
+    env_file: todoist-classifier.env  # copy from example.env and modify
 ```
 
 ## How it works
@@ -72,16 +72,16 @@ Todoist. It does not create projects or sections.
 ## Configuration
 
 Settings may be supplied through environment variables or a `.env` file. All
-required categorizer settings use the `TODOIST_CATEGORIZER_` prefix.
+required classifier settings use the `TODOIST_CLASSIFIER_` prefix.
 
 | Variable                                | Required | Description                                                                                                                                                                                                                                                                    |
 | --------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TODOIST_CATEGORIZER_TODOIST_API_TOKEN` | Yes      | Todoist personal API token used to read projects and move tasks.                                                                                                                                                                                                               |
-| `TODOIST_CATEGORIZER_OPENAI_API_KEY`    | Yes      | OpenAI API key used for classification.                                                                                                                                                                                                                                        |
-| `TODOIST_CATEGORIZER_PROJECT_IDS`       | Yes      | Comma-separated Todoist project IDs, without spaces. This can be extracted from the URL when viewing a Todoist project. It's the part of the url that comes after the project name. It's the `abcdefg12345` in `https://app.todoist.com/app/project/project-name-abcdefg12345` |
-| `TODOIST_CATEGORIZER_POLL_INTERVAL_MS`  | Yes      | Delay between complete polling cycles, in milliseconds. `2000` polls every two seconds.                                                                                                                                                                                        |
-| `TODOIST_CATEGORIZER_LOG_LEVEL`         | No       | Python log level. Defaults to `INFO`; use `DEBUG` for detailed polling output.                                                                                                                                                                                                 |
-| `TODOIST_CATEGORIZER_OPENAI_MODEL`      | No       | OpenAI model to use. Defaults to `gpt-5-nano`.                                                                                                                                                                                                                                 |
+| `TODOIST_CLASSIFIER_TODOIST_API_TOKEN` | Yes      | Todoist personal API token used to read projects and move tasks.                                                                                                                                                                                                               |
+| `TODOIST_CLASSIFIER_OPENAI_API_KEY`    | Yes      | OpenAI API key used for classification.                                                                                                                                                                                                                                        |
+| `TODOIST_CLASSIFIER_PROJECT_IDS`       | Yes      | Comma-separated Todoist project IDs, without spaces. This can be extracted from the URL when viewing a Todoist project. It's the part of the url that comes after the project name. It's the `abcdefg12345` in `https://app.todoist.com/app/project/project-name-abcdefg12345` |
+| `TODOIST_CLASSIFIER_POLL_INTERVAL_MS`  | Yes      | Delay between complete polling cycles, in milliseconds. `2000` polls every two seconds.                                                                                                                                                                                        |
+| `TODOIST_CLASSIFIER_LOG_LEVEL`         | No       | Python log level. Defaults to `INFO`; use `DEBUG` for detailed polling output.                                                                                                                                                                                                 |
+| `TODOIST_CLASSIFIER_OPENAI_MODEL`      | No       | OpenAI model to use. Defaults to `gpt-5-nano`.                                                                                                                                                                                                                                 |
 
 
 ## Preparing a Todoist project
@@ -91,10 +91,10 @@ required categorizer settings use the `TODOIST_CATEGORIZER_` prefix.
    `In progress`, `Waiting`, and `Done` for a project workflow.
 3. Optionally add descriptions to sections to make their intended contents
    clearer to the model.
-4. Add the project ID to `TODOIST_CATEGORIZER_PROJECT_IDS` and start the
+4. Add the project ID to `TODOIST_CLASSIFIER_PROJECT_IDS` and start the
    service.
 
-Use distinct section names within a project. The categorizer identifies the
+Use distinct section names within a project. The classifier identifies the
 model's choice by section name, so duplicate names are ambiguous.
 
 ## Development
@@ -104,5 +104,5 @@ and run the command without manually managing a virtual environment:
 
 ```bash
 uv sync
-uv run todoist-categorizer
+uv run todoist-classifier
 ```
