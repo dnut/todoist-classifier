@@ -65,6 +65,19 @@ def setup() -> Tuple[Config, OpenAI, requests.Session]:
 
 
 def poll(todoist, openai, project_id, model, effort):
+    # Fetch tasks
+    tasks, complete = fetch_all(todoist, "tasks", project_id)
+    if not complete:
+        logging.warning("Task list incomplete; processing fetched tasks")
+
+    pending = [
+        task for task in tasks if task.get("section_id") is None and task.get("parent_id") is None
+    ]
+
+    if not pending:
+        return 0
+
+    # Fetch project
     project = fetch_project(todoist, project_id)
     if not project:
         logging.error("Cannot proceed with unidentifiable project: %s", project_id)
@@ -86,15 +99,6 @@ def poll(todoist, openai, project_id, model, effort):
     ]
     sections_by_name = {s["name"]: s["id"] for s in choices}
     sections_without_id = [{"name": s["name"], "description": s["description"]} for s in sections]
-
-    # Fetch tasks. If pagination fails, process the pages already fetched.
-    tasks, complete = fetch_all(todoist, "tasks", project_id)
-    if not complete:
-        logging.warning("Task list incomplete; processing fetched tasks")
-
-    pending = [
-        task for task in tasks if task.get("section_id") is None and task.get("parent_id") is None
-    ]
 
     (logging.info if len(pending) else logging.debug)(
         "Found %d sections and %d uncategorized tasks",
