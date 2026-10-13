@@ -45,14 +45,17 @@ def main():
 
     while True:
         for project_id in config.project_ids:
-            poll(
-                todoist,
-                openai,
-                project_id,
-                config.openai_model,
-                config.openai_reasoning_effort,
-                backoff,
-            )
+            try:
+                poll(
+                    todoist,
+                    openai,
+                    project_id,
+                    config.openai_model,
+                    config.openai_reasoning_effort,
+                    backoff,
+                )
+            except Exception:
+                logging.exception("Polling project %s failed", project_id)
         time.sleep(int(config.poll_interval_ms) / 1000)
 
 
@@ -110,20 +113,20 @@ def poll(todoist, openai, project_id, model, effort, backoff):
         logging.error("Cannot proceed without a complete section list")
         return 1
 
+    # Todoist allows duplicate section names, but the model can only pick by name.
+    sections_by_name = {}
+    for s in sections:
+        if s["name"] in sections_by_name:
+            logging.warning("Ignoring section with duplicate name: %s", s["name"])
+            continue
+        sections_by_name[s["name"]] = s
     choices = [
-        {
-            "id": str(s["id"]),
-            "name": s["name"],
-            "description": s.get("description"),
-        }
-        for s in sections
+        {"name": s["name"], "description": s.get("description")} for s in sections_by_name.values()
     ]
-    sections_by_name = {s["name"]: s["id"] for s in choices}
-    sections_without_id = [{"name": s["name"], "description": s["description"]} for s in sections]
 
-    (logging.info if len(pending) else logging.debug)(
+    logging.info(
         "Found %d sections and %d uncategorized tasks",
-        len(sections),
+        len(choices),
         len(pending),
     )
 
@@ -140,12 +143,12 @@ def poll(todoist, openai, project_id, model, effort, backoff):
         seen.add(task_id)
 
         try:
-            section_name = classify_task(openai, project, task, sections_without_id, model, effort)
+            section_name = classify_task(openai, project, task, choices, model, effort)
 
             if section_name not in sections_by_name:
-                raise ValueError(f"Unknown section ID: {section_name}")
+                raise ValueError(f"Unknown section name: {section_name}")
 
-            section_id = sections_by_name[section_name]
+            section_id = sections_by_name[section_name]["id"]
 
             response = todoist.post(
                 f"{TODOIST_URL}/tasks/{task_id}/move",
