@@ -14,6 +14,8 @@ from pydantic import BeforeValidator
 from pydantic_settings import BaseSettings, SettingsConfigDict, NoDecode
 
 TODOIST_URL = "https://api.todoist.com/api/v1"
+BACKOFF_BASE_SECONDS = 60
+BACKOFF_MAX_SECONDS = 3600
 
 
 class Config(BaseSettings):
@@ -38,9 +40,19 @@ def main():
         f"poll interval of {config.poll_interval_ms}"
     )
 
+    # (project id, task id) -> (consecutive failures, monotonic time before which to skip it)
+    backoff: dict[str, tuple[int, float]] = {}
+
     while True:
         for project_id in config.project_ids:
-            poll(todoist, openai, project_id, config.openai_model, config.openai_reasoning_effort)
+            poll(
+                todoist,
+                openai,
+                project_id,
+                config.openai_model,
+                config.openai_reasoning_effort,
+                backoff,
+            )
         time.sleep(int(config.poll_interval_ms) / 1000)
 
 
@@ -64,7 +76,7 @@ def setup() -> Tuple[Config, OpenAI, requests.Session]:
     return config, openai, todoist
 
 
-def poll(todoist, openai, project_id, model, effort):
+def poll(todoist, openai, project_id, model, effort, backoff):
     # Fetch tasks
     tasks, complete = fetch_all(todoist, "tasks", project_id)
     if not complete:
@@ -73,6 +85,15 @@ def poll(todoist, openai, project_id, model, effort):
     pending = [
         task for task in tasks if task.get("section_id") is None and task.get("parent_id") is None
     ]
+
+    if complete:
+        # Forget tasks that were moved or removed since they last failed.
+        pending_ids = {task.get("id") for task in pending}
+        for key in [k for k in backoff if k[0] == project_id and k[1] not in pending_ids]:
+            del backoff[key]
+
+    now = time.monotonic()
+    pending = [t for t in pending if backoff.get((project_id, t.get("id")), (0, 0))[1] <= now]
 
     if not pending:
         return 0
@@ -133,12 +154,16 @@ def poll(todoist, openai, project_id, model, effort):
             )
             response.raise_for_status()
 
+            backoff.pop((project_id, task_id), None)
             moved += 1
             logging.info("%s -> %s", name, section_name)
 
         except Exception as exc:
+            failures = backoff.get((project_id, task_id), (0, 0))[0] + 1
+            delay = min(BACKOFF_BASE_SECONDS * 2 ** (failures - 1), BACKOFF_MAX_SECONDS)
+            backoff[(project_id, task_id)] = (failures, time.monotonic() + delay)
             failed += 1
-            logging.error("Task %s (%s) failed: %s", task_id, name, exc)
+            logging.error("Task %s (%s) failed: %s; retrying in %ds", task_id, name, exc, delay)
             continue
 
     (logging.info if moved + failed + len(seen) else logging.debug)(
